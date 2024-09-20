@@ -19,7 +19,7 @@ namespace WindowsGSM.Plugins
             author = "AimiSayo",
             description = "WindowsGSM plugin for supporting Satisfactory Dedicated Server 1.0",
             version = "1.0",
-            url = "https://github.com/AimiSayo/WindowsGSM.Satisfactory", // Github repository link (Best practice)
+            url = "https://github.com/AIMI-SAYO/WindowsGSM.Satisfactory", // Github repository link (Best practice)
             color = "#f9b234" // Color Hex
         };
 
