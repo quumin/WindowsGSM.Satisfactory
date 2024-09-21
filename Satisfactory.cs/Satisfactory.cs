@@ -17,7 +17,7 @@ namespace WindowsGSM.Plugins
         {
             name = "WindowsGSM.Satisfactory", // WindowsGSM.XXXX
             author = "AimiSayo",
-            description = "WindowsGSM plugin for supporting Satisfactory Dedicated Server 1.0",
+            description = "WindowsGSM plugin for supporting Satisfactory Dedicated Server",
             version = "1.0",
             url = "https://github.com/AimiSayo/WindowsGSM.Satisfactory", // Github repository link (Best practice)
             color = "#f9b234" // Color Hex
@@ -30,33 +30,30 @@ namespace WindowsGSM.Plugins
         // - Standard Constructor and properties
         public Satisfactory(ServerConfig serverData) : base(serverData) => base.serverData = _serverData = serverData;
         private readonly ServerConfig _serverData;
-        public string Error, Notice;
+
+        public new string Error, Notice; // Use 'new' keyword to hide inherited member
 
         // - Game server Fixed variables
         public override string StartPath => @"Engine\Binaries\Win64\FactoryServer-Win64-Shipping-Cmd.exe"; // Game server start path
         public string FullName = "Satisfactory Dedicated Server"; // Game server FullName
         public bool AllowsEmbedConsole = true;  // Does this server support output redirect?
         public int PortIncrements = 1; // This tells WindowsGSM how many ports should skip after installation
-
-        // Add QueryPort but mark it as unused
-        public string QueryPort => "0"; // Unused, but required by WindowsGSM
-
-        // Add Defaultmap property to avoid runtime errors
-        public string Defaultmap => "Dedicated"; // Placeholder default map
-
-        // Add Maxplayers property to avoid runtime errors
-        public string Maxplayers => "4"; // Default max players value
-
-        // Add Additional property to avoid runtime errors
-        public string Additional => "-log"; // Default additional parameters
+        public object QueryMethod = new A2S(); // Assign A2S query method or set to 'null'
 
         // - Game server default values
         public string Port = "7777"; // Default port
+        public string QueryPort = "15777"; // Default query port
+        public string Defaultmap = "Dedicated"; // Placeholder default map
+        public string Maxplayers = "4"; // Default max players value
+        public string Additional = "-log"; // Additional server start parameter
 
         // - Create a default cfg for the game server after installation
         public async void CreateServerCFG()
         {
-            // No config file seems
+            await Task.Run(() =>
+            {
+                // No config file seems
+            });
         }
 
         // - Start server function, return its Process to WindowsGSM
@@ -74,7 +71,6 @@ namespace WindowsGSM.Plugins
             param += $" {_serverData.ServerParam}";
             param += string.IsNullOrWhiteSpace(_serverData.ServerPort) ? string.Empty : $" -Port={_serverData.ServerPort}";
             param += string.IsNullOrWhiteSpace(_serverData.ServerMaxPlayer) ? string.Empty : $" -MaxPlayers={_serverData.ServerMaxPlayer}";
-            param += string.IsNullOrWhiteSpace(_serverData.Additional) ? string.Empty : $" {_serverData.Additional}";
 
             // Prepare Process
             var p = new Process
@@ -84,9 +80,11 @@ namespace WindowsGSM.Plugins
                     WorkingDirectory = ServerPath.GetServersServerFiles(_serverData.ServerID),
                     FileName = shipExePath,
                     Arguments = param,
-                    WindowStyle = ProcessWindowStyle.Normal,
-                    CreateNoWindow = false,
-                    UseShellExecute = false
+                    WindowStyle = ProcessWindowStyle.Minimized, // Minimized to avoid hanging UI
+                    UseShellExecute = false,
+                    RedirectStandardInput = true,   // Redirect output if needed
+                    RedirectStandardOutput = true,  // Redirect output if needed
+                    RedirectStandardError = true    // Redirect output if needed
                 },
                 EnableRaisingEvents = true
             };
@@ -94,23 +92,31 @@ namespace WindowsGSM.Plugins
             // Set up Redirect Input and Output to WindowsGSM Console if EmbedConsole is on
             if (AllowsEmbedConsole)
             {
-                p.StartInfo.RedirectStandardInput = true;
-                p.StartInfo.RedirectStandardOutput = true;
-                p.StartInfo.RedirectStandardError = true;
+                p.StartInfo.CreateNoWindow = true;
                 var serverConsole = new ServerConsole(_serverData.ServerID);
                 p.OutputDataReceived += serverConsole.AddOutput;
                 p.ErrorDataReceived += serverConsole.AddOutput;
+
+                // Start Process
+                try
+                {
+                    p.Start();
+                }
+                catch (Exception e)
+                {
+                    Error = e.Message;
+                    return null; // return null if fail to start
+                }
+
+                p.BeginOutputReadLine();
+                p.BeginErrorReadLine();
+                return p;
             }
 
-            // Start Process
+            // Start Process (without EmbedConsole)
             try
             {
                 p.Start();
-                if (AllowsEmbedConsole)
-                {
-                    p.BeginOutputReadLine();
-                    p.BeginErrorReadLine();
-                }
                 return p;
             }
             catch (Exception e)
@@ -127,12 +133,12 @@ namespace WindowsGSM.Plugins
             {
                 Functions.ServerConsole.SetMainWindow(p.MainWindowHandle);
                 Functions.ServerConsole.SendWaitToMainWindow("^c");
-                p.WaitForExit(20000);
             });
+            await Task.Delay(20000); // Give time to shut down properly
         }
 
         // fixes WinGSM bug, https://github.com/WindowsGSM/WindowsGSM/issues/57#issuecomment-983924499
-        public async Task<Process> Update(bool validate = false, string custom = null)
+        public new async Task<Process> Update(bool validate = false, string custom = null)
         {
             var (p, error) = await Installer.SteamCMD.UpdateEx(serverData.ServerID, AppId, validate, custom: custom, loginAnonymous: loginAnonymous);
             Error = error;
