@@ -47,6 +47,9 @@ namespace WindowsGSM.Plugins
         // Add Maxplayers property to avoid runtime errors
         public string Maxplayers => "4"; // Default max players value
 
+        // Add Additional property to avoid runtime errors
+        public string Additional => "-log"; // Default additional parameters
+
         // - Game server default values
         public string Port = "7777"; // Default port
 
@@ -71,6 +74,7 @@ namespace WindowsGSM.Plugins
             param += $" {_serverData.ServerParam}";
             param += string.IsNullOrWhiteSpace(_serverData.ServerPort) ? string.Empty : $" -Port={_serverData.ServerPort}";
             param += string.IsNullOrWhiteSpace(_serverData.ServerMaxPlayer) ? string.Empty : $" -MaxPlayers={_serverData.ServerMaxPlayer}";
+            param += string.IsNullOrWhiteSpace(_serverData.Additional) ? string.Empty : $" {_serverData.Additional}";
 
             // Prepare Process
             var p = new Process
