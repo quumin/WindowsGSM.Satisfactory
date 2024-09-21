@@ -52,8 +52,35 @@ namespace WindowsGSM.Plugins
         {
             await Task.Run(() =>
             {
-                // No config file seems
+                // No config file seems necessary
             });
+        }
+
+        // - Update the Game.ini file to change the MaxPlayers setting
+        private void UpdateMaxPlayersInGameIni()
+        {
+            string gameIniPath = Path.Combine(Functions.ServerPath.GetServersServerFiles(_serverData.ServerID), @"FactoryGame\Saved\Config\WindowsServer\Game.ini");
+            if (File.Exists(gameIniPath))
+            {
+                var iniContent = File.ReadAllText(gameIniPath);
+
+                // Replace or add the MaxPlayers setting
+                string maxPlayersLine = $"MaxPlayers={_serverData.ServerMaxPlayer}";
+                if (iniContent.Contains("MaxPlayers="))
+                {
+                    iniContent = System.Text.RegularExpressions.Regex.Replace(iniContent, @"MaxPlayers=\d+", maxPlayersLine);
+                }
+                else
+                {
+                    iniContent += Environment.NewLine + maxPlayersLine;
+                }
+
+                File.WriteAllText(gameIniPath, iniContent);
+            }
+            else
+            {
+                Error = "Game.ini file not found";
+            }
         }
 
         // - Start server function, return its Process to WindowsGSM
@@ -65,6 +92,9 @@ namespace WindowsGSM.Plugins
                 Error = $"{Path.GetFileName(shipExePath)} not found ({shipExePath})";
                 return null;
             }
+
+            // Update the Game.ini file with the new MaxPlayers setting
+            UpdateMaxPlayersInGameIni();
 
             // Prepare start parameter
             string param = "FactoryGame -log -unattended";
