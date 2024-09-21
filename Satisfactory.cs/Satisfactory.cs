@@ -44,13 +44,16 @@ namespace WindowsGSM.Plugins
         // Add Defaultmap property to avoid runtime errors
         public string Defaultmap => "Dedicated"; // Placeholder default map
 
+        // Add Maxplayers property to avoid runtime errors
+        public string Maxplayers => "4"; // Default max players value
+
         // - Game server default values
         public string Port = "7777"; // Default port
 
         // - Create a default cfg for the game server after installation
         public async void CreateServerCFG()
         {
-            //No config file seems
+            // No config file seems
         }
 
         // - Start server function, return its Process to WindowsGSM
