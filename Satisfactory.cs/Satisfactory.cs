@@ -41,6 +41,9 @@ namespace WindowsGSM.Plugins
         // Add QueryPort but mark it as unused
         public string QueryPort => "0"; // Unused, but required by WindowsGSM
 
+        // Add Defaultmap property to avoid runtime errors
+        public string Defaultmap => "Dedicated"; // Placeholder default map
+
         // - Game server default values
         public string Port = "7777"; // Default port
 
