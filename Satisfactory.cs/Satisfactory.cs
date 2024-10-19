@@ -15,37 +15,44 @@ namespace WindowsGSM.Plugins
         // - Plugin Details
         public Plugin Plugin = new Plugin
         {
-            name = "WindowsGSM.Satisfactory", // WindowsGSM.XXXX
-            author = "AimiSayo",
-            description = "WindowsGSM plugin for supporting Satisfactory Dedicated Server",
-            version = "1.0",
-            url = "https://github.com/AimiSayo/WindowsGSM.Satisfactory", // Github repository link (Best practice)
-            color = "#f9b234" // Color Hex
+            name = "WindowsGSM.Satisfactory",                                       // Plugin Name, of format WindowsGSM.XXXX
+            author = "Q-min",                                                       // Plugin Author
+            description = "Plugin for Satisfactory (Dedicated Server).",            // Plugin Description
+            version = "1.1",                                                        /* Version History:
+                                                                                     *  Version 1.1 -
+                                                                                     *      Contains updates to comments, handling MaxPlayers, removal of -log flag so it can run headless.
+                                                                                     *  Version 1.0 - 
+                                                                                     *      Can be found on https://github.com/AIMI-SAYO/WindowsGSM.Satisfactory/tree/main.
+                                                                                     */
+            url = "https://github.com/quumin/WindowsGSM.Satisfactory/tree/main",    // Github Repository Link
+            color = "#f9b234"                                                       // Color Hex, Lightning Yellow
         };
 
         // - Settings properties for SteamCMD installer
-        public override bool loginAnonymous => true;
-        public override string AppId => "1690800"; // Game server appId Steam
+        public override bool loginAnonymous => true;                                // Login Anonymously to SteamCMD
+        public override string AppId => "1690800";                                  // Satisfactory game server App ID on Steam
 
         // - Standard Constructor and properties
         public Satisfactory(ServerConfig serverData) : base(serverData) => base.serverData = _serverData = serverData;
         private readonly ServerConfig _serverData;
 
-        public new string Error, Notice; // Use 'new' keyword to hide inherited member
+        public new string Error, Notice;                                            // Use 'new' keyword to hide inherited member
 
         // - Game server Fixed variables
-        public override string StartPath => @"Engine\Binaries\Win64\FactoryServer-Win64-Shipping-Cmd.exe"; // Game server start path
-        public string FullName = "Satisfactory Dedicated Server"; // Game server FullName
-        public bool AllowsEmbedConsole = true;  // Does this server support output redirect?
-        public int PortIncrements = 1; // This tells WindowsGSM how many ports should skip after installation
-        public object QueryMethod = new A2S(); // Assign A2S query method or set to 'null'
+        public override string StartPath =>
+            @"Engine\Binaries\Win64\FactoryServer-Win64-Shipping-Cmd.exe";          // Game server start path
+        public string FullName = "Satisfactory Dedicated Server";                   // Game server FullName
+        public bool AllowsEmbedConsole = true;                                      // Does this server support output redirect?
+        public int PortIncrements = 1;                                              // This tells WindowsGSM how many ports should skip after installation
+        public object QueryMethod = new A2S();                                      // Assign A2S query method or set to 'null'
 
         // - Game server default values
-        public string Port = "7777"; // Default port
-        public string QueryPort = "15777"; // Default query port
-        public string Defaultmap = "Dedicated"; // Placeholder default map
-        public string Maxplayers = "4"; // Default max players value
-        public string Additional = "-log"; // Additional server start parameter
+        public string Port = "7777";                                                // Default port
+        public string QueryPort = "7777";                                           // Default query port, 15777 is no longer used as of 1.0.
+                                                                                    //  See https://satisfactory.wiki.gg/wiki/Dedicated_servers#Port_Forwarding_and_Firewall_Settings.
+        public string Defaultmap = "Dedicated";                                     // Placeholder default map, should be "Dedicated" to get Satisfactory to work.
+        public string Maxplayers = "4";                                             // Default max players value
+        public string Additional = "";                                              // Additional server start parameter
 
         // - Create a default cfg for the game server after installation
         public async void CreateServerCFG()
@@ -54,7 +61,7 @@ namespace WindowsGSM.Plugins
             {
                 // No config file seems necessary
             });
-        }
+        }//CreateServerCFG()
 
         // - Update the Game.ini file to change the MaxPlayers setting
         private void UpdateMaxPlayersInGameIni()
@@ -64,97 +71,133 @@ namespace WindowsGSM.Plugins
             {
                 var iniContent = File.ReadAllText(gameIniPath);
 
-                // Replace or add the MaxPlayers setting
-                string maxPlayersLine = $"MaxPlayers={_serverData.ServerMaxPlayer}";
-                if (iniContent.Contains("MaxPlayers="))
+                //This is to add (or replace) the MaxPlayers setting
+                //  Sometimes the max players won't update unless you also specify the tag.
+                string maxPlayersParam = "MaxPlayers=";
+                string maxPlayersTag = $"[/Script/Engine.GameSession]";
+                string maxPlayersLine = $"{maxPlayersParam}{_serverData.ServerMaxPlayer}";
+                //  If there's already a MaxPlayers field...
+                if (iniContent.Contains(maxPlayersParam))
                 {
-                    iniContent = System.Text.RegularExpressions.Regex.Replace(iniContent, @"MaxPlayers=\d+", maxPlayersLine);
-                }
+                    //... and if the MaxPlayers Tag is not present...
+                    if (!iniContent.Contains(maxPlayersTag))
+                    {
+                        iniContent = System.Text.RegularExpressions.Regex.Replace(iniContent, @$"{maxPlayersParam}\d+", $"{maxPlayersTag}\n\n{maxPlayersLine}");
+                    }//if
+                    else
+                    {
+                        iniContent = System.Text.RegularExpressions.Regex.Replace(iniContent, @$"{maxPlayersParam}\d+", maxPlayersLine);
+                    }//else
+                }//if
                 else
                 {
-                    iniContent += Environment.NewLine + maxPlayersLine;
-                }
+                    iniContent += $"{maxPlayersTag}\n\n{maxPlayersLine}";
+                }//else
 
                 File.WriteAllText(gameIniPath, iniContent);
-            }
+            }//if
             else
             {
-                Error = "Game.ini file not found";
-            }
-        }
+                Error = "Game.ini file not found!";
+            }//else
+        }//UpdateMaxPlayersInGameIni()
 
         // - Start server function, return its Process to WindowsGSM
         public async Task<Process> Start()
         {
-            string shipExePath = Functions.ServerPath.GetServersServerFiles(_serverData.ServerID, StartPath);
+            string shipExePath = ServerPath.GetServersServerFiles(_serverData.ServerID, StartPath);
             if (!File.Exists(shipExePath))
             {
-                Error = $"{Path.GetFileName(shipExePath)} not found ({shipExePath})";
+                Error = $"{Path.GetFileName(shipExePath)} not found (\'{shipExePath}\')";
                 return null;
-            }
+            }//if
 
             // Update the Game.ini file with the new MaxPlayers setting
             UpdateMaxPlayersInGameIni();
 
             // Prepare start parameter
-            string param = "FactoryGame -log -unattended";
+            string param = "FactoryGame -unattended";
             param += $" {_serverData.ServerParam}";
             param += string.IsNullOrWhiteSpace(_serverData.ServerPort) ? string.Empty : $" -Port={_serverData.ServerPort}";
             param += string.IsNullOrWhiteSpace(_serverData.ServerMaxPlayer) ? string.Empty : $" -MaxPlayers={_serverData.ServerMaxPlayer}";
 
             // Prepare Process
-            var p = new Process
+            Process gameServerProcess = new Process
             {
                 StartInfo =
                 {
                     WorkingDirectory = ServerPath.GetServersServerFiles(_serverData.ServerID),
                     FileName = shipExePath,
                     Arguments = param,
-                    WindowStyle = ProcessWindowStyle.Minimized, // Minimized to avoid hanging UI
                     UseShellExecute = false,
-                    RedirectStandardInput = true,   // Redirect output if needed
-                    RedirectStandardOutput = true,  // Redirect output if needed
-                    RedirectStandardError = true    // Redirect output if needed
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Minimized
                 },
                 EnableRaisingEvents = true
             };
 
-            // Set up Redirect Input and Output to WindowsGSM Console if EmbedConsole is on
+            // If WindowsGSM "EmbedConsole" is enabled...
             if (AllowsEmbedConsole)
             {
-                p.StartInfo.CreateNoWindow = true;
+                //... redirect output.
+                gameServerProcess.StartInfo.RedirectStandardInput = true;
+                gameServerProcess.StartInfo.RedirectStandardOutput = true;
+                gameServerProcess.StartInfo.RedirectStandardError = true;
                 var serverConsole = new ServerConsole(_serverData.ServerID);
-                p.OutputDataReceived += serverConsole.AddOutput;
-                p.ErrorDataReceived += serverConsole.AddOutput;
+                gameServerProcess.OutputDataReceived += serverConsole.AddOutput;
+                gameServerProcess.ErrorDataReceived += serverConsole.AddOutput;
 
-                // Start Process
+                //... start the Game Server Process.
                 try
                 {
-                    p.Start();
-                }
+                    gameServerProcess.Start();
+                }//try
+                catch (FileNotFoundException e)
+                {
+                    Error = $"\'FactoryServer.exe\' file not found: {e.Message}";
+                    return null;
+                }//catch
+                catch (UnauthorizedAccessException e)
+                {
+                    Error = $"Access to \'FactoryServer.exe\' denied: {e.Message}";
+                    return null;
+                }//catch
                 catch (Exception e)
                 {
-                    Error = e.Message;
-                    return null; // return null if fail to start
-                }
+                    Error = $"Unknown exception with \'FactoryServer.exe\': {e.Message}";
+                    return null;
+                }//catch
 
-                p.BeginOutputReadLine();
-                p.BeginErrorReadLine();
-                return p;
-            }
-
-            // Start Process (without EmbedConsole)
-            try
+                //... capture output to WindowsGSM.
+                gameServerProcess.BeginOutputReadLine();
+                gameServerProcess.BeginErrorReadLine();
+                return gameServerProcess;
+            }//if
+            else
             {
-                p.Start();
-                return p;
-            }
-            catch (Exception e)
-            {
-                Error = e.Message;
-                return null; // return null if fail to start
-            }
-        }
+                //... start the Game Server Process.
+                try
+                {
+                    gameServerProcess.Start();
+                    return gameServerProcess;
+                }//try
+                catch (FileNotFoundException e)
+                {
+                    Error = $"\'FactoryServer.exe\' file not found: {e.Message}";
+                    return null;
+                }//catch
+                catch (UnauthorizedAccessException e)
+                {
+                    Error = $"Access to \'FactoryServer.exe\' denied: {e.Message}";
+                    return null;
+                }//catch
+                catch (Exception e)
+                {
+                    Error = $"Unknown exception with \'FactoryServer.exe\': {e.Message}";
+                    return null;
+                }//catch
+            }//else
+        }//else
 
         // - Stop server function
         public async Task Stop(Process p)
@@ -165,7 +208,7 @@ namespace WindowsGSM.Plugins
                 Functions.ServerConsole.SendWaitToMainWindow("^c");
             });
             await Task.Delay(20000); // Give time to shut down properly
-        }
+        }//Stop
 
         // fixes WinGSM bug, https://github.com/WindowsGSM/WindowsGSM/issues/57#issuecomment-983924499
         public new async Task<Process> Update(bool validate = false, string custom = null)
@@ -174,6 +217,6 @@ namespace WindowsGSM.Plugins
             Error = error;
             await Task.Run(() => { p.WaitForExit(); });
             return p;
-        }
-    }
-}
+        }//Update
+    }//class
+}//namespace
